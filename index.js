@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
 const port = process.env.PORT || 8000;
 
@@ -26,6 +26,7 @@ async function run() {
     await client.connect();
     const menuCollection = client.db("shopingCenter").collection("menu");
     const cartCollection = client.db("shopingCenter").collection("cart");
+    const userCollection = client.db("shopingCenter").collection("users");
 
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
@@ -41,7 +42,25 @@ async function run() {
     });
 
     app.get("/carts", async (req, res) => {
-      const result = await cartCollection.find().toArray();
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await cartCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    // data delete
+    app.delete("/carts/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await cartCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // user data save
+
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const result = await userCollection.insertOne(user);
       res.send(result);
     });
 
