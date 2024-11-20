@@ -28,6 +28,7 @@ async function run() {
     const cartCollection = client.db("shopingCenter").collection("cart");
     const userCollection = client.db("shopingCenter").collection("users");
 
+    // menu related api
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
       res.send(result);
@@ -68,6 +69,11 @@ async function run() {
       }
       const result = await userCollection.insertOne(user);
 
+      res.send(result);
+    });
+
+    app.get("/users", async (req, res) => {
+      const result = await userCollection.find().toArray();
       res.send(result);
     });
 
