@@ -3,6 +3,7 @@ const app = express();
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 8000;
 
 // middleware
@@ -27,6 +28,31 @@ async function run() {
     const menuCollection = client.db("shopingCenter").collection("menu");
     const cartCollection = client.db("shopingCenter").collection("cart");
     const userCollection = client.db("shopingCenter").collection("users");
+
+    // middleware
+    const verifyToken = (req, res, next) => {
+      console.log("inside verify token", req.headers.authorization);
+      if (!req.headers.authorization) {
+        return res.status(401).send({ message: "forbidden access" });
+      }
+      const token = req.headers.authorization.split(" ")[1];
+      jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+          return res.status(401).send({ message: "forbidden access" });
+        }
+        req.decoded = decoded;
+        next();
+      });
+    };
+
+    // JSON WEB TOKEN RELATED API
+    app.post("/jwt", async (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1h",
+      });
+      res.send({ token });
+    });
 
     // menu related api
     app.get("/menu", async (req, res) => {
@@ -57,11 +83,10 @@ async function run() {
       res.send(result);
     });
 
-    // user data save
+    // user  related api data  save
 
     app.post("/users", async (req, res) => {
       const user = req.body;
-
       const query = { email: user.email };
       const existingUser = await userCollection.findOne(query);
       if (existingUser) {
@@ -72,7 +97,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
       const result = await userCollection.find().toArray();
       res.send(result);
     });
@@ -92,11 +117,27 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          role:"admin",
+          role: "admin",
         },
       };
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result);
+    });
+
+    // user admin ki na check kora
+
+    app.get("users/admin/:id", async (req, res) => {
+      const email = req.params.email;
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: "Unauthorize" });
+      }
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      let admin = false;
+      if (user) {
+        admin = user?.role === "admin";
+      }
+      res.send({ admin });
     });
 
     // Send a ping to confirm a successful connection
